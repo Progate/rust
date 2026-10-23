@@ -99,9 +99,12 @@ pub fn link_binary(
 
         if outputs.outputs.should_link() {
             let tmpdir = if cfg!(target_family = "wasm") {
+                // std::env::temp_dir() is unsupported on WASI, so mirror its Unix behavior:
+                // $TMPDIR if set, otherwise /tmp.
+                let dir = env::var_os("TMPDIR").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("/tmp"));
                 TempFileBuilder::new()
                     .prefix("rustc")
-                    .tempdir_in(std::env::current_dir().unwrap())
+                    .tempdir_in(dir)
                     .unwrap_or_else(|error| sess.dcx().emit_fatal(errors::CreateTempDir { error }))
             } else {
                 TempFileBuilder::new()
