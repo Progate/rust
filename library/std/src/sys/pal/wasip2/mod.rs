@@ -19,6 +19,8 @@ pub mod fs;
 pub mod futex;
 #[path = "../wasi/io.rs"]
 pub mod io;
+#[path = "../wasi/linux.rs"]
+pub mod linux;
 
 #[path = "../wasi/net.rs"]
 pub mod net;

@@ -22,6 +22,7 @@ pub mod fs;
 #[path = "../wasm/atomics/futex.rs"]
 pub mod futex;
 pub mod io;
+pub mod linux;
 
 pub mod net;
 pub mod os;

@@ -4,21 +4,17 @@ use core::slice::memchr;
 
 use crate::error::Error as StdError;
 use crate::ffi::{CStr, OsStr, OsString};
-use crate::marker::PhantomData;
 use crate::ops::Drop;
 use crate::os::wasi::prelude::*;
 use crate::path::{self, PathBuf};
 use crate::sys::common::small_c_string::{run_path_with_cstr, run_with_cstr};
-use crate::sys::unsupported;
-use crate::{fmt, io, str, vec};
+use crate::{fmt, io, iter, slice, str, vec};
 
 // Add a few symbols not in upstream `libc` just yet.
 mod libc {
     pub use libc::*;
 
     extern "C" {
-        pub fn getcwd(buf: *mut c_char, size: size_t) -> *mut c_char;
-        pub fn chdir(dir: *const c_char) -> c_int;
         pub fn __wasilibc_get_environ() -> *mut *mut c_char;
     }
 }
@@ -66,79 +62,115 @@ pub fn error_string(errno: i32) -> String {
     }
 }
 
+/// getcwd(2). The working directory belongs to the kernel, as on Linux (see `linux.rs`).
 pub fn getcwd() -> io::Result<PathBuf> {
-    let mut buf = Vec::with_capacity(512);
+    let mut buf = Vec::<u8>::with_capacity(512);
     loop {
-        unsafe {
-            let ptr = buf.as_mut_ptr() as *mut libc::c_char;
-            if !libc::getcwd(ptr, buf.capacity()).is_null() {
-                let len = CStr::from_ptr(buf.as_ptr() as *const libc::c_char).to_bytes().len();
-                buf.set_len(len);
+        match super::linux::raw(
+            super::linux::SYS_GETCWD,
+            [super::linux::ptr(buf.as_mut_ptr()), buf.capacity() as i64, 0, 0, 0, 0],
+        ) {
+            Ok(len) => {
+                // The kernel returns the length including the terminating NUL.
+                // SAFETY: getcwd(2) has written `len` bytes.
+                unsafe { buf.set_len((len as usize).saturating_sub(1)) };
                 buf.shrink_to_fit();
                 return Ok(PathBuf::from(OsString::from_vec(buf)));
-            } else {
-                let error = io::Error::last_os_error();
-                if error.raw_os_error() != Some(libc::ERANGE) {
-                    return Err(error);
-                }
             }
-
-            // Trigger the internal buffer resizing logic of `Vec` by requiring
-            // more space than the current capacity.
-            let cap = buf.capacity();
-            buf.set_len(cap);
-            buf.reserve(1);
+            Err(super::linux::ERANGE) => {
+                // Trigger the internal buffer resizing logic of `Vec` by requiring
+                // more space than the current capacity.
+                let cap = buf.capacity();
+                buf.reserve(cap + 1);
+            }
+            Err(errno) => return Err(super::linux::error(errno)),
         }
     }
 }
 
+/// chdir(2).
 pub fn chdir(p: &path::Path) -> io::Result<()> {
-    let result = run_path_with_cstr(p, &|p| unsafe { Ok(libc::chdir(p.as_ptr())) })?;
-    match result == (0 as libc::c_int) {
-        true => Ok(()),
-        false => Err(io::Error::last_os_error()),
-    }
+    run_path_with_cstr(p, &|p| {
+        super::linux::call(super::linux::SYS_CHDIR, [super::linux::path(p), 0, 0, 0, 0, 0])
+            .map(drop)
+    })
 }
 
-pub struct SplitPaths<'a>(!, PhantomData<&'a ()>);
+const PATH_SEPARATOR: u8 = b':';
 
-pub fn split_paths(_unparsed: &OsStr) -> SplitPaths<'_> {
-    panic!("unsupported")
+pub struct SplitPaths<'a> {
+    iter: iter::Map<slice::Split<'a, u8, fn(&u8) -> bool>, fn(&'a [u8]) -> PathBuf>,
+}
+
+pub fn split_paths(unparsed: &OsStr) -> SplitPaths<'_> {
+    fn bytes_to_path(b: &[u8]) -> PathBuf {
+        PathBuf::from(<OsStr as OsStrExt>::from_bytes(b))
+    }
+    fn is_separator(b: &u8) -> bool {
+        *b == PATH_SEPARATOR
+    }
+    let unparsed = unparsed.as_bytes();
+    SplitPaths {
+        iter: unparsed
+            .split(is_separator as fn(&u8) -> bool)
+            .map(bytes_to_path as fn(&[u8]) -> PathBuf),
+    }
 }
 
 impl<'a> Iterator for SplitPaths<'a> {
     type Item = PathBuf;
     fn next(&mut self) -> Option<PathBuf> {
-        self.0
+        self.iter.next()
+    }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.iter.size_hint()
     }
 }
 
 #[derive(Debug)]
 pub struct JoinPathsError;
 
-pub fn join_paths<I, T>(_paths: I) -> Result<OsString, JoinPathsError>
+pub fn join_paths<I, T>(paths: I) -> Result<OsString, JoinPathsError>
 where
     I: Iterator<Item = T>,
     T: AsRef<OsStr>,
 {
-    Err(JoinPathsError)
+    let mut joined = Vec::new();
+
+    for (i, path) in paths.enumerate() {
+        let path = path.as_ref().as_bytes();
+        if i > 0 {
+            joined.push(PATH_SEPARATOR)
+        }
+        if path.contains(&PATH_SEPARATOR) {
+            return Err(JoinPathsError);
+        }
+        joined.extend_from_slice(path);
+    }
+    Ok(OsStringExt::from_vec(joined))
 }
 
 impl fmt::Display for JoinPathsError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        "not supported on wasm yet".fmt(f)
+        write!(f, "path segment contains separator `{}`", char::from(PATH_SEPARATOR))
     }
 }
 
 impl StdError for JoinPathsError {
     #[allow(deprecated)]
     fn description(&self) -> &str {
-        "not supported on wasm yet"
+        "failed to join paths"
     }
 }
 
 pub fn current_exe() -> io::Result<PathBuf> {
-    unsupported()
+    match crate::fs::read_link("/proc/self/exe") {
+        Err(ref e) if e.kind() == io::ErrorKind::NotFound => Err(io::const_io_error!(
+            io::ErrorKind::Uncategorized,
+            "no /proc/self/exe available. Is /proc mounted?",
+        )),
+        other => other,
+    }
 }
 
 pub struct Env {
@@ -264,19 +296,21 @@ pub fn page_size() -> usize {
 }
 
 pub fn temp_dir() -> PathBuf {
-    panic!("no filesystem on wasm")
+    crate::env::var_os("TMPDIR").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("/tmp"))
 }
 
 pub fn home_dir() -> Option<PathBuf> {
-    None
+    crate::env::var_os("HOME").filter(|s| !s.is_empty()).map(PathBuf::from)
 }
 
 pub fn exit(code: i32) -> ! {
     unsafe { libc::exit(code) }
 }
 
+/// getpid(2).
 pub fn getpid() -> u32 {
-    panic!("unsupported");
+    const SYS_GETPID: i32 = 172;
+    super::linux::raw(SYS_GETPID, [0; 6]).unwrap_or(0) as u32
 }
 
 #[doc(hidden)]
