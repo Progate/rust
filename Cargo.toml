@@ -97,7 +97,7 @@ codegen-units = 1
 # for wasm32 with target_vendor = "browseros".
 libc = { git = 'https://github.com/Progate/rust-libc.git', rev = '1d8b649b6e1fe571bada9fc778654887658e1fa2' }
 linux-raw-sys = { git = 'https://github.com/Progate/linux-raw-sys.git', rev = '1e29295cc2681b1b5ed60241219085292dfe00ec' }
-rustix = { git = 'https://github.com/Progate/rustix.git', rev = '5bf9818b7a2399977bc55d289fc09a837ac98a52' }
+rustix = { git = 'https://github.com/Progate/rustix.git', rev = '5c7d234d278a84ea43721953fcc855fa629dcc21' }
 object-0_36 = { git = 'https://github.com/Progate/object.git', rev = '574f6d35047b461478eb8ab3c4befd974bd3ea06', package = 'object' }
 object-0_37 = { git = 'https://github.com/Progate/object.git', rev = '89ab6e676c5528b110ebabe6a46354898c50575b', package = 'object' }
 object-0_38 = { git = 'https://github.com/Progate/object.git', rev = 'd6e14b1292b58cd215e5622a04b50654b1d2d0de', package = 'object' }

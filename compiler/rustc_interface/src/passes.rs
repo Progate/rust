@@ -276,7 +276,10 @@ fn configure_and_expand(
         }
     }
 
-    if is_proc_macro_crate && sess.target.is_like_wasm && !sess.opts.unstable_opts.wasm_proc_macros
+    if is_proc_macro_crate
+        && sess.target.is_like_wasm
+        && sess.target.os != rustc_target::spec::Os::Linux
+        && !sess.opts.unstable_opts.wasm_proc_macros
     {
         sess.dcx().emit_err(diagnostics::UnstableWasmProcMacro);
     }

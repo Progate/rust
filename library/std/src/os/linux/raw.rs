@@ -237,7 +237,8 @@ mod arch {
     target_arch = "s390x",
     target_arch = "sparc64",
     target_arch = "riscv64",
-    target_arch = "riscv32"
+    target_arch = "riscv32",
+    all(target_arch = "wasm32", target_vendor = "browseros")
 ))]
 mod arch {
     #[stable(feature = "raw_ext", since = "1.1.0")]
@@ -312,7 +313,7 @@ mod arch {
 
 #[cfg(any(target_arch = "x86_64", target_arch = "powerpc64",
     // `wasm32-wali-linux-musl` uses ABI similar to x86_64
-    target_arch = "wasm32"))]
+    all(target_arch = "wasm32", not(target_vendor = "browseros"))))]
 mod arch {
     use crate::os::raw::{c_int, c_long};
 

@@ -500,6 +500,7 @@ fn main() {
         || target.contains("windows-gnullvm")
         || target.contains("aix")
         || target.contains("ohos")
+        || (target.starts_with("wasm32-") && target.ends_with("-linux-musl"))
     {
         "c++"
     } else if target.contains("netbsd") && llvm_static_stdcpp.is_some() {

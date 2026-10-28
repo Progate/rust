@@ -15,7 +15,7 @@ mod common;
 
 cfg_select! {
     any(
-        all(target_family = "unix", not(any(all(target_family = "wasm", target_os = "linux"), target_os = "espidf", target_os = "vita"))),
+        all(target_family = "unix", not(any(all(target_family = "wasm", target_os = "linux", not(target_vendor = "browseros")), target_os = "espidf", target_os = "vita"))),
         target_os = "hermit",
     ) => {
         mod unix;
@@ -45,7 +45,7 @@ cfg_select! {
         mod wasi;
         pub use wasi::*;
     }
-    all(target_family = "wasm", target_os = "linux") => {
+    all(target_family = "wasm", target_os = "linux", not(target_vendor = "browseros")) => {
         mod wali;
         pub use wali::*;
     }
