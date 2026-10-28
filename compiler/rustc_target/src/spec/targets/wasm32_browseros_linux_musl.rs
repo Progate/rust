@@ -11,13 +11,12 @@
 
 use crate::spec::{
     BinaryFormat, Cc, LinkSelfContainedDefault, LinkerFlavor, Lld, PanicStrategy, RelocModel,
-    Target, TargetMetadata, TlsModel, base,
+    Target, TargetMetadata, TargetOptions, TlsModel, base,
 };
 
 pub(crate) fn target() -> Target {
-    let mut options = base::linux_musl::opts();
+    let mut options = TargetOptions { vendor: "browseros".into(), ..base::linux_musl::opts() };
 
-    options.vendor = "browseros".into();
     options.families = crate::spec::cvs!["unix", "wasm"];
     options.is_like_wasm = true;
     options.binary_format = BinaryFormat::Wasm;
@@ -38,10 +37,14 @@ pub(crate) fn target() -> Target {
     options.crt_static_default = false;
     options.crt_static_respected = true;
     options.exe_suffix = "".into();
+    // The crt1 of BrowserOS calls `main(argc, argv)` by its WebAssembly name, as clang names it.
+    options.entry_name = "__main_argc_argv".into();
     options.dll_prefix = "lib".into();
     options.dll_suffix = ".so".into();
 
-    // The world with threads: shared memory, and `pthread_create` from musl.
+    // The world with threads: shared memory, and `pthread_create` from musl. `-pthread` makes the
+    // driver link the threaded libraries (`usr/lib/wasm32-linux-musl-threads`) with shared memory.
+    options.add_pre_link_args(LinkerFlavor::Gnu(Cc::Yes, Lld::No), &["-pthread"]);
     options.features = "+atomics,+bulk-memory,+mutable-globals,+sign-ext".into();
     options.singlethread = false;
     options.max_atomic_width = Some(64);
