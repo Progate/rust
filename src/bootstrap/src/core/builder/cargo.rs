@@ -315,6 +315,12 @@ impl Cargo {
             }
         }
 
+        if target.contains("wasi") {
+            // link-self-contained needs lld to be present, but getting it to
+            // link for wasi is a bit difficult.
+            self.rustflags.arg("-Clink-self-contained=no");
+        }
+
         // We need to set host linker flags for compiling build scripts and proc-macros.
         // This is done the same way as the target linker flags below, so cargo won't see
         // any fingerprint difference between host==target versus cross-compiled targets
