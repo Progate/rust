@@ -85,3 +85,5 @@ rustflags = [
 rustc-std-workspace-core = { path = 'rustc-std-workspace-core' }
 rustc-std-workspace-alloc = { path = 'rustc-std-workspace-alloc' }
 rustc-std-workspace-std = { path = 'rustc-std-workspace-std' }
+# libc 0.2.191 with `wasm32-browseros-linux-musl` (musl with the riscv32 definitions on wasm32)
+libc = { git = 'https://github.com/Progate/rust-libc.git', rev = '1d8b649b6e1fe571bada9fc778654887658e1fa2' }
