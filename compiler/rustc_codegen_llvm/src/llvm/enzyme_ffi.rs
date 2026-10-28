@@ -99,6 +99,45 @@ pub(crate) mod Enzyme_AD {
     use super::{CConcreteType, CTypeTreeRef, Context};
     use crate::llvm::{EnzymeTypeTree, LLVMRustVersionMajor};
 
+    /// WASI has no dynamic loading, so the Enzyme plugin can never be loaded there. This mirrors
+    /// the part of `libloading` used below, with `Library::new` always failing.
+    #[cfg(target_os = "wasi")]
+    mod libloading {
+        use std::ffi::c_void;
+        use std::marker::PhantomData;
+        use std::ops::Deref;
+
+        #[derive(Debug)]
+        pub(crate) struct Error;
+
+        pub(crate) struct Library(());
+
+        impl Library {
+            pub(crate) unsafe fn new(_path: impl AsRef<std::ffi::OsStr>) -> Result<Self, Error> {
+                Err(Error)
+            }
+
+            pub(crate) unsafe fn get<T>(&self, _symbol: &[u8]) -> Result<Symbol<'_, T>, Error> {
+                Err(Error)
+            }
+        }
+
+        pub(crate) struct Symbol<'lib, T>(&'lib T, PhantomData<&'lib Library>);
+
+        impl<T> Symbol<'_, T> {
+            pub(crate) fn try_as_raw_ptr(self) -> Option<*mut c_void> {
+                None
+            }
+        }
+
+        impl<T> Deref for Symbol<'_, T> {
+            type Target = T;
+            fn deref(&self) -> &T {
+                self.0
+            }
+        }
+    }
+
     type EnzymeSetCLBoolFn = unsafe extern "C" fn(*mut c_void, u8);
     type EnzymeSetCLStringFn = unsafe extern "C" fn(*mut c_void, *const c_char);
 
