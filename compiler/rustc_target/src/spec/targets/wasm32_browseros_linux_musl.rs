@@ -56,8 +56,8 @@ pub(crate) fn target() -> Target {
     options.default_uwtable = false;
     options.eh_frame_header = false;
 
-    // WebAssembly has no RELRO (data segments are not mapped read-only).
-    options.relro_level = RelroLevel::Off;
+    // WebAssembly has no RELRO (data segments are not mapped read-only): pass no -z relro option at all.
+    options.relro_level = RelroLevel::None;
     options.emit_debug_gdb_scripts = false;
     options.generate_arange_section = false;
 
