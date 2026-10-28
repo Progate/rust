@@ -40,6 +40,7 @@ pub fn decode_error_kind(errno: i32) -> std_io::ErrorKind {
         libc::EINTR => Interrupted,
         libc::EINVAL => InvalidInput,
         libc::EISDIR => IsADirectory,
+        libc::ENOTEMPTY => DirectoryNotEmpty,
         libc::ELOOP => FilesystemLoop,
         libc::ENOENT => NotFound,
         libc::ENOMEM => OutOfMemory,
