@@ -7,6 +7,7 @@
 use crate::io;
 
 pub mod conf;
+pub mod linux;
 #[allow(unused)]
 #[path = "../wasm/atomics/futex.rs"]
 pub mod futex;

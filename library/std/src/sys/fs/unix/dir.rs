@@ -1,5 +1,8 @@
 use libc::c_int;
 
+#[cfg(target_os = "wasi")]
+use super::libc;
+
 cfg_select! {
     not(
         any(

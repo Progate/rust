@@ -328,6 +328,13 @@ pub fn read_output(
     match out.diverge() {}
 }
 
+#[cfg(not(target_os = "wasi"))]
 pub fn getpid() -> u32 {
     panic!("no pids on this platform")
+}
+
+/// getpid(2) of the kernel on BrowserOS (see sys/pal/wasi/linux.rs).
+#[cfg(target_os = "wasi")]
+pub fn getpid() -> u32 {
+    crate::sys::linux::getpid()
 }

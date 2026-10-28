@@ -36,12 +36,7 @@ cfg_select! {
     }
     target_os = "wasi" => {
         mod wasi;
-        #[expect(dead_code)]
-        mod unsupported;
-        mod imp {
-            pub use super::wasi::{getcwd, chdir, temp_dir};
-            pub use super::unsupported::{current_exe, SplitPaths, split_paths, JoinPathsError, join_paths, home_dir};
-        }
+        use wasi as imp;
     }
     target_os = "windows" => {
         mod windows;

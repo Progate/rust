@@ -131,10 +131,26 @@ impl BorrowedFd<'_> {
 
     /// Creates a new `OwnedFd` instance that shares the same underlying file
     /// description as the existing `BorrowedFd` instance.
-    #[cfg(any(target_arch = "wasm32", target_os = "hermit", target_os = "trusty"))]
+    #[cfg(any(
+        all(target_arch = "wasm32", not(target_os = "wasi")),
+        target_os = "hermit",
+        target_os = "trusty"
+    ))]
     #[stable(feature = "io_safety", since = "1.63.0")]
     pub fn try_clone_to_owned(&self) -> io::Result<OwnedFd> {
         Err(io::Error::UNSUPPORTED_PLATFORM)
+    }
+
+    /// Creates a new `OwnedFd` instance that shares the same underlying file
+    /// description as the existing `BorrowedFd` instance.
+    ///
+    /// The descriptor table belongs to the kernel on BrowserOS, which duplicates
+    /// with `fcntl(F_DUPFD_CLOEXEC)` as on Linux (see sys/pal/wasi/linux.rs).
+    #[cfg(target_os = "wasi")]
+    #[stable(feature = "io_safety", since = "1.63.0")]
+    pub fn try_clone_to_owned(&self) -> io::Result<OwnedFd> {
+        let fd = crate::sys::linux::dup_cloexec(self.as_raw_fd())?;
+        Ok(unsafe { OwnedFd::from_raw_fd(fd) })
     }
 
     /// Creates a new `OwnedFd` instance that shares the same underlying file

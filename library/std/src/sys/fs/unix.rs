@@ -56,6 +56,9 @@ use libc::readdir64;
 #[cfg(target_os = "l4re")]
 use libc::readdir64_r;
 use libc::{c_int, mode_t};
+// Paths go through the kernel's Linux system calls on BrowserOS (see sys/pal/wasi/linux.rs).
+#[cfg(target_os = "wasi")]
+use crate::sys::pal::linux::libc;
 #[cfg(target_os = "android")]
 use libc::{
     dirent as dirent64, fstat as fstat64, fstatat as fstatat64, ftruncate64, lseek64,
@@ -746,8 +749,19 @@ impl FileAttr {
         SystemTime::new(self.stat.st_atim.tv_sec, self.stat.st_atim.tv_nsec.into())
     }
 
+    #[cfg(target_os = "nto")]
     pub fn created(&self) -> io::Result<SystemTime> {
         SystemTime::new(self.stat.st_ctim.tv_sec, self.stat.st_ctim.tv_nsec.into())
+    }
+
+    /// The filesystem of BrowserOS keeps no creation time; statx(2) answers without
+    /// `STATX_BTIME`, and Linux reports that as below (see sys/pal/wasi/linux.rs).
+    #[cfg(target_os = "wasi")]
+    pub fn created(&self) -> io::Result<SystemTime> {
+        Err(io::const_error!(
+            io::ErrorKind::Unsupported,
+            "creation time is not available for the filesystem",
+        ))
     }
 }
 
@@ -2534,7 +2548,9 @@ mod remove_dir_impl {
     miri
 )))]
 mod remove_dir_impl {
-    #[cfg(not(all(target_os = "linux", target_env = "gnu")))]
+    #[cfg(target_os = "wasi")]
+    use super::libc::{fdopendir, unlinkat};
+    #[cfg(not(any(target_os = "wasi", all(target_os = "linux", target_env = "gnu"))))]
     use libc::{fdopendir, openat, unlinkat};
     #[cfg(all(target_os = "linux", target_env = "gnu"))]
     use libc::{fdopendir, openat64 as openat, unlinkat};
@@ -2548,6 +2564,15 @@ mod remove_dir_impl {
     use crate::path::{Path, PathBuf};
     use crate::sys::helpers::{ignore_notfound, run_path_with_cstr};
     use crate::sys::{cvt, cvt_r};
+
+    #[cfg(target_os = "wasi")]
+    unsafe fn openat(
+        dirfd: libc::c_int,
+        path: *const libc::c_char,
+        flags: libc::c_int,
+    ) -> libc::c_int {
+        unsafe { super::libc::openat(dirfd, path, flags, 0) }
+    }
 
     pub fn openat_nofollow_dironly(parent_fd: Option<RawFd>, p: &CStr) -> io::Result<OwnedFd> {
         let fd = cvt_r(|| unsafe {
