@@ -920,7 +920,7 @@ impl<'a> Linker for GccLinker<'a> {
     fn add_no_exec(&mut self) {
         if self.sess.target.is_like_windows {
             self.link_arg("--nxcompat");
-        } else if self.is_gnu {
+        } else if self.is_gnu && !self.sess.target.is_like_wasm {
             self.link_args(&["-z", "noexecstack"]);
         }
     }

@@ -10,7 +10,7 @@
 //! elsewhere) take the ELF linker's arguments, so this target links like other Linux targets.
 
 use crate::spec::{
-    BinaryFormat, Cc, LinkSelfContainedDefault, LinkerFlavor, Lld, PanicStrategy, RelocModel,
+    BinaryFormat, Cc, LinkSelfContainedDefault, LinkerFlavor, Lld, PanicStrategy, RelocModel, RelroLevel,
     Target, TargetMetadata, TargetOptions, TlsModel, base,
 };
 
@@ -56,6 +56,8 @@ pub(crate) fn target() -> Target {
     options.default_uwtable = false;
     options.eh_frame_header = false;
 
+    // WebAssembly has no RELRO (data segments are not mapped read-only).
+    options.relro_level = RelroLevel::Off;
     options.emit_debug_gdb_scripts = false;
     options.generate_arange_section = false;
 
