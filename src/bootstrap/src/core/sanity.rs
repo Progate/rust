@@ -351,7 +351,7 @@ than building it.
         }
 
         // Make sure musl-root is valid.
-        if target.contains("musl") && !target.contains("unikraft") {
+        if target.needs_crt_begin_end() {
             match build.musl_libdir(*target) {
                 Some(libdir) => {
                     if fs::metadata(libdir.join("libc.a")).is_err() {

@@ -1652,6 +1652,7 @@ supported_targets! {
     ("wasm32-wasip3", wasm32_wasip3),
     ("wasm32-wasip1-threads", wasm32_wasip1_threads),
     ("wasm32-wali-linux-musl", wasm32_wali_linux_musl),
+    ("wasm32-browseros-linux-musl", wasm32_browseros_linux_musl),
     ("wasm64-unknown-unknown", wasm64_unknown_unknown),
 
     ("thumbv6m-none-eabi", thumbv6m_none_eabi),
@@ -3090,8 +3091,14 @@ impl Target {
             matches!(self.linker_flavor, LinkerFlavor::Msvc(..)),
             "`linker_flavor` must be `msvc` if and only if `is_like_msvc` is set"
         );
+        // BrowserOS links wasm like Linux links ELF: with the C driver (see
+        // `wasm32_browseros_linux_musl`).
+        let links_like_linux = self.is_like_wasm
+            && self.os == Os::Linux
+            && self.vendor == "browseros"
+            && matches!(self.linker_flavor, LinkerFlavor::Gnu(Cc::Yes, _));
         check_eq!(
-            self.is_like_wasm && self.os != Os::Emscripten,
+            self.is_like_wasm && self.os != Os::Emscripten && !links_like_linux,
             matches!(self.linker_flavor, LinkerFlavor::WasmLld(..)),
             "`linker_flavor` must be `wasm-lld` if and only if `is_like_wasm` is set and the `os` is not `emscripten`",
         );

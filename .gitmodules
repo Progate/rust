@@ -33,7 +33,8 @@
 	shallow = true
 [submodule "library/backtrace"]
 	path = library/backtrace
-	url = https://github.com/rust-lang/backtrace-rs.git
+	url = https://github.com/Progate/backtrace-rs.git
+	branch = browseros-wasm-noop-1.99
 	shallow = true
 [submodule "src/tools/rustc-perf"]
 	path = src/tools/rustc-perf

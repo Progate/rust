@@ -105,7 +105,8 @@ impl TargetSelection {
     }
 
     pub fn needs_crt_begin_end(&self) -> bool {
-        self.contains("musl") && !self.contains("unikraft")
+        // BrowserOS links with its own C driver, crt objects, libc.so and libunwind.so.
+        self.contains("musl") && !self.contains("unikraft") && !self.contains("browseros")
     }
 
     /// Path to the file defining the custom target, if any.
